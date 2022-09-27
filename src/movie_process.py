@@ -8,6 +8,9 @@ def resize_img(img):
     HEIGHT = 360
     return cv2.resize(img,(WIDE, HEIGHT))
 
+def cut_img_1p(img):
+    return img[:,0:320]
+
 def bgr2hsv(img):
     return cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
@@ -55,7 +58,7 @@ def make_mask_imgs(img):
                 ]
     mask_imgs = []
     for color_hsv_list in hsv_range:
-        mask_img = np.zeros((360, 640))
+        mask_img = np.zeros((360, 320))
         if isinstance(color_hsv_list[0][0], list) == True:
             for c in color_hsv_list:
                 m = pickup_color(img, c[0], c[1])
@@ -75,16 +78,14 @@ def puyo_search(mask_img, x_pos, y_pos):
     Return:
         (bool): ぷよがあるかないか
     """
-    X_FRAME_POS = 90
     X_SQUARE = 21
     X_RANGE_START = 6
     X_RANGE = 10
-    Y_FRAME_POS = 55
     Y_SQUARE = 20
     Y_RANGE_START = 5
     Y_RANGE = 10
-    x_pos_on_img = x_pos * X_SQUARE + X_RANGE_START + X_FRAME_POS
-    y_pos_on_img = y_pos * Y_SQUARE + Y_RANGE_START + Y_FRAME_POS
+    x_pos_on_img = x_pos * X_SQUARE + X_RANGE_START
+    y_pos_on_img = y_pos * Y_SQUARE + Y_RANGE_START
     
     x = x_pos_on_img
     y = y_pos_on_img
@@ -106,7 +107,7 @@ def make_field(mask_imgs):
     """
     # YELLOW = 1, RED = 2, BLUE = 3 PURPLE = 4, GREEN = 5, OJAMA = 6
     COLOR = [1, 2, 3, 4, 5, 6]
-    field = [[0]*6 for i in range(12)]
+    field = [[0]*6 for _ in range(12)]
     
     for y in range(11, -1, -1):
         for x in range(6):
@@ -173,23 +174,30 @@ def movie_process(target_file, output_folder="result"):
     output_file_path = f"./{output_folder}/result.csv"
     if os.path.isdir(output_folder) == False:
         os.mkdir(output_folder)
-        os.mkdir(f"./{output_folder}/images")
     
     cap_file = cv2.VideoCapture(target_file)
     output_file = open(output_file_path, "w")
-    output_file.write("動画時間, 試合, 連鎖数, 発火前ぷよ量, 発火前画像, 発火後ぷよ量, 発火後画像\n")
+    output_file.write("動画時間, 試合, 連鎖数, 発火前ぷよ量, 発火後ぷよ量\n")
+
     print(f"動画読み込み成否->{cap_file.isOpened()}")
+
     kakeru_img = cv2.imread("./kakeru.png", 0)
     kakeru_img = cv2.resize(kakeru_img,(12,12))
     score_0000_img = cv2.imread("./score_0000.png", 0)
+
+    # 各変数の初期化
     next_flag = True
     prev_img = None
     match_started_flag = True
-    puyo_function = puyo_simulator.puyo_simulator()
-    match_count = 0
     frame_count = 0
+    match_count = 0
     num_puyo_before = 0
     num_puyo_after = 0
+
+    # ゲームシミュレータを格納.
+    puyo_function = puyo_simulator.puyo_simulator()
+
+    # 動画のfpsを取得
     video_fps = cap_file.get(cv2.CAP_PROP_FPS)
 
     #画像を1フレームずつ取得。終わったらループを抜ける
@@ -199,37 +207,37 @@ def movie_process(target_file, output_folder="result"):
         if not ret:
             break
         resized_img = resize_img(img)       
+        img_1p = cut_img_1p(resized_img)
         if prev_img is None:
-            prev_img = resized_img
+            prev_img = img_1p
             continue
-        
+
         if match_started_flag and check_score_0000(resized_img, score_0000_img):
-            # output_file.write(f"match{match_count}\n")
+            # 試合の区切りを判定.
             match_count += 1
             match_started_flag = False
         
-        mask_imgs = make_mask_imgs(resized_img) #マスク画像を生成
         # 連鎖後にツモ欄が動いているか判定
-        tsumo_flag = check_tsumo(prev_img, resized_img)
+        tsumo_flag = check_tsumo(prev_img, img_1p)
         if(tsumo_flag and (next_flag == False)):
             match_started_flag = True
             next_flag = True
             num_puyo_after = puyo_function.count_puyo()
-            cv2.imwrite(f"./{output_folder}/images/image_after_{frame_count}.png", img)
-            output_file.write(f"{num_puyo_after}, image_after_{frame_count}.png\n")
+            output_file.write(f"{num_puyo_after}\n")
             next_flag = True
 
         # ✖️が出てきたら
-        kakeru_flag = check_multiple_mark(resized_img, kakeru_img)
+        kakeru_flag = check_multiple_mark(img_1p, kakeru_img)
         if(kakeru_flag and next_flag):
-            # 1回だけ連鎖数を読み取る
-            puyo_function.field = make_field(mask_imgs)
-            cv2.imwrite(f"./{output_folder}/images/image_before_{frame_count}.png", img)
-            num_puyo_before = puyo_function.count_puyo()
-            num_chain = puyo_function.chain()
-            movie_time = calc_videotime(video_fps, frame_count)
-            output_file.write(f"{movie_time}, {match_count}, {num_chain}, {num_puyo_before}, image_before_{frame_count}.png, ")
+            mask_imgs = make_mask_imgs(img_1p) #マスク画像を生成
+            # 連鎖数を読み取る
+            puyo_function.field = make_field(mask_imgs) # 盤面を配列の情報にする.
+            num_puyo_before = puyo_function.count_puyo() # ぷよ量カウント
+            num_chain = puyo_function.chain() # 連鎖数
+            movie_time = calc_videotime(video_fps, frame_count) # 動画時間
+            output_file.write(f"{movie_time}, {match_count}, {num_chain}, {num_puyo_before}, ") # 結果の書き込み
             next_flag = False
-            # 次に前のフレームまでツモ欄が動く(flag1=true)まではスルー.
-        prev_img = resized_img
+            # 次に前のフレームまでツモ欄が動く(next_flag=true)まではスルー.
+        prev_img = img_1p # 更新
+
     output_file.close()
