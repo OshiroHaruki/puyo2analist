@@ -173,11 +173,12 @@ def movie_process(target_file, output_folder="result"):
     output_file_path = f"./{output_folder}/result.csv"
     if os.path.isdir(output_folder) == False:
         os.mkdir(output_folder)
-        os.mkdir(f"./{output_folder}/images")
+        # os.mkdir(f"./{output_folder}/images")
     
     cap_file = cv2.VideoCapture(target_file)
     output_file = open(output_file_path, "w")
-    output_file.write("動画時間, 試合, 連鎖数, 発火前ぷよ量, 発火前画像, 発火後ぷよ量, 発火後画像\n")
+    # output_file.write("動画時間, 試合, 連鎖数, 発火前ぷよ量, 発火前画像, 発火後ぷよ量, 発火後画像\n")
+    output_file.write("動画時間, 試合, 連鎖数, 発火前ぷよ量, 発火後ぷよ量\n")
     print(f"動画読み込み成否->{cap_file.isOpened()}")
     kakeru_img = cv2.imread("./kakeru.png", 0)
     kakeru_img = cv2.resize(kakeru_img,(12,12))
@@ -215,8 +216,7 @@ def movie_process(target_file, output_folder="result"):
             match_started_flag = True
             next_flag = True
             num_puyo_after = puyo_function.count_puyo()
-            cv2.imwrite(f"./{output_folder}/images/image_after_{frame_count}.png", img)
-            output_file.write(f"{num_puyo_after}, image_after_{frame_count}.png\n")
+            output_file.write(f"{num_puyo_after}\n")
             next_flag = True
 
         # ✖️が出てきたら
@@ -224,11 +224,10 @@ def movie_process(target_file, output_folder="result"):
         if(kakeru_flag and next_flag):
             # 1回だけ連鎖数を読み取る
             puyo_function.field = make_field(mask_imgs)
-            cv2.imwrite(f"./{output_folder}/images/image_before_{frame_count}.png", img)
             num_puyo_before = puyo_function.count_puyo()
             num_chain = puyo_function.chain()
             movie_time = calc_videotime(video_fps, frame_count)
-            output_file.write(f"{movie_time}, {match_count}, {num_chain}, {num_puyo_before}, image_before_{frame_count}.png, ")
+            output_file.write(f"{movie_time}, {match_count}, {num_chain}, {num_puyo_before}, ")
             next_flag = False
             # 次に前のフレームまでツモ欄が動く(flag1=true)まではスルー.
         prev_img = resized_img
