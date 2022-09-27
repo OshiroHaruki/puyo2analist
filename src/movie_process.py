@@ -174,7 +174,6 @@ def movie_process(target_file, output_folder="result"):
     output_file_path = f"./{output_folder}/result.csv"
     if os.path.isdir(output_folder) == False:
         os.mkdir(output_folder)
-        # os.mkdir(f"./{output_folder}/images")
     
     cap_file = cv2.VideoCapture(target_file)
     output_file = open(output_file_path, "w")
@@ -187,6 +186,7 @@ def movie_process(target_file, output_folder="result"):
     prev_img = None
     match_started_flag = True
     puyo_function = puyo_simulator.puyo_simulator()
+
     match_count = 0
     frame_count = 0
     num_puyo_before = 0
@@ -200,17 +200,16 @@ def movie_process(target_file, output_folder="result"):
         if not ret:
             break
         resized_img = resize_img(img)       
-        if prev_img is None:
-            prev_img = resized_img
-            continue
-        
         img_1p = cut_img_1p(resized_img)
-        
+        if prev_img is None:
+            prev_img = img_1p
+            continue
+
         if match_started_flag and check_score_0000(resized_img, score_0000_img):
+            # 試合の区切りを判定.
             match_count += 1
             match_started_flag = False
         
-        mask_imgs = make_mask_imgs(img_1p) #マスク画像を生成
         # 連鎖後にツモ欄が動いているか判定
         tsumo_flag = check_tsumo(prev_img, img_1p)
         if(tsumo_flag and (next_flag == False)):
@@ -223,13 +222,14 @@ def movie_process(target_file, output_folder="result"):
         # ✖️が出てきたら
         kakeru_flag = check_multiple_mark(img_1p, kakeru_img)
         if(kakeru_flag and next_flag):
+            mask_imgs = make_mask_imgs(img_1p) #マスク画像を生成
             # 1回だけ連鎖数を読み取る
             puyo_function.field = make_field(mask_imgs)
-            num_puyo_before = puyo_function.count_puyo()
-            num_chain = puyo_function.chain()
-            movie_time = calc_videotime(video_fps, frame_count)
-            output_file.write(f"{movie_time}, {match_count}, {num_chain}, {num_puyo_before}, ")
+            num_puyo_before = puyo_function.count_puyo() # ぷよ量カウント
+            num_chain = puyo_function.chain() # 連鎖数
+            movie_time = calc_videotime(video_fps, frame_count) # 動画時間
+            output_file.write(f"{movie_time}, {match_count}, {num_chain}, {num_puyo_before}, ") # 結果の書き込み
             next_flag = False
-            # 次に前のフレームまでツモ欄が動く(flag1=true)まではスルー.
+            # 次に前のフレームまでツモ欄が動く(next_flag=true)まではスルー.
         prev_img = img_1p
     output_file.close()
