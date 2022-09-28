@@ -78,14 +78,16 @@ def puyo_search(mask_img, x_pos, y_pos):
     Return:
         (bool): ぷよがあるかないか
     """
+    X_FIELD_POS = 90
     X_SQUARE = 21
     X_RANGE_START = 6
     X_RANGE = 10
+    Y_FIELD_POS = 55
     Y_SQUARE = 20
     Y_RANGE_START = 5
     Y_RANGE = 10
-    x_pos_on_img = x_pos * X_SQUARE + X_RANGE_START
-    y_pos_on_img = y_pos * Y_SQUARE + Y_RANGE_START
+    x_pos_on_img = x_pos * X_SQUARE + X_RANGE_START + X_FIELD_POS
+    y_pos_on_img = y_pos * Y_SQUARE + Y_RANGE_START + Y_FIELD_POS
     
     x = x_pos_on_img
     y = y_pos_on_img
