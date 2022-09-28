@@ -8,8 +8,12 @@ def resize_img(img):
     HEIGHT = 360
     return cv2.resize(img,(WIDE, HEIGHT))
 
-def cut_img_1p(img):
+def cut_img_half(img):
     return img[:,0:320]
+
+def reverse_img(img):
+    # 画像を左右反転させる
+    return cv2.flip(img, 1)
 
 def bgr2hsv(img):
     return cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
@@ -172,8 +176,14 @@ def check_score_0000(source_img, target_img):
     loc=np.where(result_match_0000 >= threshold)
     return loc[0].size != 0
 
-def movie_process(target_file, output_folder="result"):
-    output_file_path = f"./{output_folder}/result.csv"
+def movie_process(target_file, player=1):
+    """動画を読み込み、処理を行う.
+    Args:
+        target_file (string): 処理を行う動画ファイル名
+        player (int): 1 or 2(1P or 2P)
+    """
+    output_folder="result"
+    output_file_path = f"./{output_folder}/result_{player}p.csv"
     if os.path.isdir(output_folder) == False:
         os.mkdir(output_folder)
     
@@ -209,9 +219,12 @@ def movie_process(target_file, output_folder="result"):
         if not ret:
             break
         resized_img = resize_img(img)       
-        img_1p = cut_img_1p(resized_img)
+        if player == 2:
+            resized_img = reverse_img(resized_img)
+
+        img_half = cut_img_half(resized_img)
         if prev_img is None:
-            prev_img = img_1p
+            prev_img = img_half
             continue
 
         if match_started_flag and check_score_0000(resized_img, score_0000_img):
@@ -220,7 +233,7 @@ def movie_process(target_file, output_folder="result"):
             match_started_flag = False
         
         # 連鎖後にツモ欄が動いているか判定
-        tsumo_flag = check_tsumo(prev_img, img_1p)
+        tsumo_flag = check_tsumo(prev_img, img_half)
         if(tsumo_flag and (next_flag == False)):
             match_started_flag = True
             next_flag = True
@@ -229,9 +242,9 @@ def movie_process(target_file, output_folder="result"):
             next_flag = True
 
         # ✖️が出てきたら
-        kakeru_flag = check_multiple_mark(img_1p, kakeru_img)
+        kakeru_flag = check_multiple_mark(img_half, kakeru_img)
         if(kakeru_flag and next_flag):
-            mask_imgs = make_mask_imgs(img_1p) #マスク画像を生成
+            mask_imgs = make_mask_imgs(img_half) #マスク画像を生成
             # 連鎖数を読み取る
             puyo_function.field = make_field(mask_imgs) # 盤面を配列の情報にする.
             num_puyo_before = puyo_function.count_puyo() # ぷよ量カウント
@@ -240,6 +253,6 @@ def movie_process(target_file, output_folder="result"):
             output_file.write(f"{movie_time}, {match_count}, {num_chain}, {num_puyo_before}, ") # 結果の書き込み
             next_flag = False
             # 次に前のフレームまでツモ欄が動く(next_flag=true)まではスルー.
-        prev_img = img_1p # 更新
+        prev_img = img_half # 更新
 
     output_file.close()

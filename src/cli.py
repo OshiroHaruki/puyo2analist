@@ -1,7 +1,6 @@
 import sys
 import movie_process
 import os
-import movie_process_2p
 
 # 動画ファイルを実行時に引数で指定し、movie_processを行う。
 
@@ -14,10 +13,14 @@ def main(args):
             movie_process.movie_process(target_file)
         else:
             print("動画ファイルは存在しません.")
-    elif len(args) == 3: # とりあえずの分岐
+    elif len(args) == 3: # 1pか2pの指定
         target_file = args[1]
+        player = args[2]
+        if player != "1" and player != "2":
+            print("playerの指定は半角の1か2で行なってください.")
+            return
         if os.path.isfile(target_file):
-            movie_process_2p.movie_process_2p(target_file)
+            movie_process.movie_process(target_file, int(player))
         else:
             print("動画ファイルは存在しません.")
 
