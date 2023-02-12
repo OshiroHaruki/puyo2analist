@@ -176,6 +176,12 @@ def check_score_0000(source_img, target_img):
     loc=np.where(result_match_0000 >= threshold)
     return loc[0].size != 0
 
+def print_progress(video_length, n, is_end):
+    if(is_end):
+        print(f"\rCompleted-> {int(video_length)}/{int(video_length)}")
+    else:
+        print("\rProgress-> ", f"{n}/{int(video_length)}", end="")
+
 def movie_process(target_file, player=1):
     """動画を読み込み、処理を行う.
     Args:
@@ -211,10 +217,13 @@ def movie_process(target_file, player=1):
 
     # 動画のfpsを取得
     video_fps = cap_file.get(cv2.CAP_PROP_FPS)
+    # 動画のフレーム数を取得
+    video_length = cap_file.get(cv2.CAP_PROP_FRAME_COUNT)
 
     #画像を1フレームずつ取得。終わったらループを抜ける
     while True:
         frame_count += 1
+        print_progress(video_length, frame_count, is_end=False)
         ret, img = cap_file.read()
         if not ret:
             break
@@ -256,3 +265,4 @@ def movie_process(target_file, player=1):
         prev_img = img_half # 更新
 
     output_file.close()
+    print_progress(video_length, video_length, True)
